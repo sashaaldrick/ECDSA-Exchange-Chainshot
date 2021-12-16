@@ -19,6 +19,16 @@ input {
   }
 }
 
+#verification {
+  border: 1px solid black;
+  background-color: white;
+  margin: 10px 0;
+  padding: 5px 0;
+  &:before {
+    content: "Verified: ";
+  }
+}
+
 .components {
   display: flex;
   flex-wrap: wrap;

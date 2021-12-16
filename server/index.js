@@ -18,6 +18,10 @@ const publicKey1 = key1.getPublic().encode('hex');
 const publicKey2 = key2.getPublic().encode('hex');
 const publicKey3 = key3.getPublic().encode('hex');
 
+const privateKey1 = key1.getPrivate().toString();
+const privateKey2 = key2.getPrivate().toString();
+const privateKey3 = key3.getPrivate().toString();
+
 const hash1 = SHA256(publicKey1).toString();
 const hash2 = SHA256(publicKey2).toString();
 const hash3 = SHA256(publicKey3).toString();
@@ -43,7 +47,14 @@ const balances = {
   [address3]: 75,
 };
 
+const privateKeys = {
+  privateKey1,
+  privateKey2,
+  privateKey3,
+};
+
 console.log(balances); // as required by challenge 1
+console.log(privateKeys); // for verification in challenge 2
 
 app.get('/balance/:address', (req, res) => {
   const {address} = req.params;
