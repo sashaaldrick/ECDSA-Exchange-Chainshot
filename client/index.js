@@ -1,47 +1,46 @@
+// imports
 import "./index.scss";
-var EC = require('elliptic').ec;
-
 const server = "http://localhost:3042";
+import { Buffer } from 'buffer';
+const EC = require('elliptic').ec;
+const SHA256 = require('crypto-js/sha256');
+const ec = new EC('secp256k1');
 
-// what do we need to do?
-// using the element "private-key", we need to authenticate the private key with the public key on the front-end and allow the transaction to go ahead. probably absolutely appalling security-wise especially that we are using the private key, but this is for learning purposes only.
+function signMessage(rawPrivateKey) {
+  const ec = new EC('secp256k1');
+  let keyPair = ec.keyFromPrivate(Buffer.from(rawPrivateKey,'base64').toString('hex'), 'hex');
+  let privKey = keyPair.getPrivate("hex");
+  let pubKey = keyPair.getPublic();
+  let key = ec.keyFromPublic(pubKey.encode('hex'), 'hex'); 
+  let msg = [ 0, 1, 2, 3 ];
+  let signature = ec.sign(msg, privKey, "hex", {canonical: true});
+
+  // var pubKeyHash = SHA256(pubKey).toString(); // console.log(`Private key: ${privKey}`);
+  // console.log("Public key:", pubKey.encode("hex").substr(2));
+  // console.log("Public key (compressed):",
+  //             pubKey.encodeCompressed("hex"));
+  // console.log(`Msg hash: ${msg}`);
+  // console.log("Signature:", signature);
+
+  let derSign = signature.toDER();
+  console.log('Signature verification status: (Client Side)' + key.verify(msg, derSign));
+  return signature;
+};
+
 document.getElementById("private-key").addEventListener('input', ({ target: {value} }) => {
   if(value === "") {
-    // no private key what do
+    document.getElementById("verification").innerHTML = "No Private Key Supplied";
     return;
+  } else {
+    document.getElementById("verification").innerHTML = "Key Recieved, Ready to Attempt to Transfer";
   }
-
-  // sign a signature 
-
-  var msg = [0, 1, 2, 3]; // message to sign for verification purposes
-  var signature = value.sign(msg); // doesn't work because it is not a key.
-
-  var derSign = signature.toDER();
-  console.log("this works")
-
-}
-);
-
-document.getElementById("verify-ownership").addEventListener('click', () => {
-  // take input from text box which is supposedly private key and authenticate that here against the private key, return to a visible field that yes indeed verified and only be able to send from the other buttons if you are verified otherwise say 'not verified' and don't let balance be sent.
-  const private_key = document.getElementById("private-key").value;
-
 });
 
-
-
-// code for balance checker, on the input box of your address
-// takes the element, adds an even listener on input
-// if value is null or empty return 0
-// otherwise fetch the server balance based on 'value' variable being the input in the box
-// then return response.json
-// then pass that in as an object called balance and send that into the inner HTML of the balance div with id 'balance'.
 document.getElementById("exchange-address").addEventListener('input', ({ target: {value} }) => {
   if(value === "") {
     document.getElementById("balance").innerHTML = 0;
     return;
   }
-
   fetch(`${server}/balance/${value}`).then((response) => {
     return response.json();
   }).then(({ balance }) => {
@@ -49,28 +48,28 @@ document.getElementById("exchange-address").addEventListener('input', ({ target:
   });
 });
 
-
-// code for transfer
-// on click set up sender, amount and recipient variables
-// send to an object called body which then is stringified to be sent as JSON 
-// send a POST request to server with body
-// fetch a response and pass it into the balance div inner html to update the balance.
-
-
 document.getElementById("transfer-amount").addEventListener('click', () => {
   const sender = document.getElementById("exchange-address").value;
   const amount = document.getElementById("send-amount").value;
   const recipient = document.getElementById("recipient").value;
+  const rawPrivateKey = document.getElementById("private-key").value;
+  const signature = signMessage(rawPrivateKey);
 
+  // also sending variable signature
   const body = JSON.stringify({
-    sender, amount, recipient
+    sender, amount, recipient, signature
   });
 
   const request = new Request(`${server}/send`, { method: 'POST', body });
 
   fetch(request, { headers: { 'Content-Type': 'application/json' }}).then(response => {
     return response.json();
-  }).then(({ balance }) => {
+  }).then(({ balance, verificationStatus }) => {
     document.getElementById("balance").innerHTML = balance;
+    if(verificationStatus){
+      document.getElementById("verification").innerHTML = "Key Verified, Transaction Sent Successfully";
+    } else {
+      document.getElementById("verification").innerHTML = "Key Incorrect! Are you up to some mischief?";
+    }
   });
 });
